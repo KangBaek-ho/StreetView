@@ -22,6 +22,12 @@
         display:flex;align-items:center;justify-content:center;z-index:7;transition:background .15s,transform .15s}
   #home:hover,#home:focus-visible{background:rgba(0,0,0,.72);transform:scale(1.08);outline:none}
   #home svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  #gyro{position:fixed;right:14px;top:12px;width:44px;height:44px;border-radius:50%;border:0;padding:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
+        display:none;align-items:center;justify-content:center;z-index:7;cursor:pointer;transition:background .15s,transform .15s}
+  #gyro.avail{display:flex}
+  #gyro:active{transform:scale(.94)}
+  #gyro.on{background:rgba(30,136,229,.92)}
+  #gyro svg{width:26px;height:26px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   #hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.5);padding:8px 16px;border-radius:20px;
         font-size:13px;pointer-events:none;transition:opacity .8s;z-index:5;white-space:nowrap}
   #toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.65);padding:8px 16px;border-radius:20px;
@@ -31,6 +37,7 @@
 <body>
 <div id="stage"><div id="pano"></div></div>
 <a id="home" href="https://kangbaek-ho.github.io/map/" aria-label="지도로 이동" title="지도"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h4.5v-6h4v6h4.5V10"/></svg></a>
+<button id="gyro" type="button" aria-label="폰을 움직여 둘러보기" title="폰을 움직여 둘러보기"><svg viewBox="0 0 24 24"><rect x="8.2" y="5" width="7.6" height="14" rx="1.8"/><path d="M5.2 9.2c-1.3 1.7-1.3 4.9 0 6.6M3.6 14.6l1.6 1.7 1.7-1.5"/><path d="M18.8 9.2c1.3 1.7 1.3 4.9 0 6.6M20.4 14.6l-1.6 1.7-1.7-1.5"/></svg></button>
 <div id="hint">드래그로 둘러보고, 스크롤로 확대·축소, 화살표를 눌러 이동하세요</div>
 <div id="toast"></div>
 <script>
@@ -194,6 +201,48 @@ addEventListener('keydown',e=>{
   apply();
 });
 addEventListener('resize',()=>layout(true));
+
+/* 폰을 움직여 둘러보기 (모션 센서) - 터치 기기에서만 버튼이 보여요 */
+const gyroBtn=document.getElementById('gyro');
+let gyroOn=false, gF=null, gPrev=null, gGot=false;
+if(('DeviceOrientationEvent' in window) && (matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints>0)) gyroBtn.classList.add('avail');
+const wrap180=d=>((d+180)%360+360)%360-180;
+function onOrient(e){
+  if(e.alpha==null||e.beta==null||e.gamma==null) return;
+  gGot=true;
+  const r=Math.PI/180, A=e.alpha*r, B=e.beta*r, G=e.gamma*r;
+  const sA=Math.sin(A), cA=Math.cos(A), sB=Math.sin(B), cB=Math.cos(B), sG=Math.sin(G), cG=Math.cos(G);
+  // 폰 뒷면이 바라보는 방향 (화면 밖으로 나가는 축의 반대)
+  const lx=-(sG*cA+sB*cG*sA), ly=-(sG*sA-sB*cG*cA), lz=-(cB*cG);
+  const yaw=Math.atan2(lx,ly)/r, pitch=Math.asin(Math.max(-1,Math.min(1,lz)))/r;
+  if(Math.abs(pitch)>80){ gF=null; return; }          // 폰을 바닥/천장 쪽으로 향하면 방향이 불안정해서 잠시 무시
+  if(!gF){ gF={yaw,pitch}; gPrev={yaw,pitch}; return; }
+  gF.yaw+=wrap180(yaw-gF.yaw)*0.4; gF.pitch+=(pitch-gF.pitch)*0.4;   // 떨림 줄이기
+  const dy=wrap180(gF.yaw-gPrev.yaw), dp=gF.pitch-gPrev.pitch;
+  gPrev={yaw:gF.yaw,pitch:gF.pitch};
+  if(Math.abs(dy)<0.03&&Math.abs(dp)<0.03) return;
+  stopInertia();
+  tx-=dy*PW/(wrap?220:70);       // 폰을 오른쪽으로 돌리면 사진의 오른쪽이 보임
+  ty+=dp*PH/(wrap?65:90);        // 폰을 위로 들면 사진의 위쪽이 보임
+  apply();
+}
+async function setGyro(on){
+  if(on){
+    if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){   // 아이폰은 권한 허용이 필요
+      try{ const res=await DeviceOrientationEvent.requestPermission(); if(res!=='granted'){ say('모션 센서 권한을 허용해야 사용할 수 있어요'); return; } }
+      catch(err){ say('모션 센서를 사용할 수 없어요'); return; }
+    }
+    gF=null; gPrev=null; gGot=false;
+    addEventListener('deviceorientation',onOrient);
+    gyroOn=true; gyroBtn.classList.add('on'); stopInertia(); hint.style.opacity=0; say('폰을 움직여 둘러보세요');
+    setTimeout(()=>{ if(gyroOn&&!gGot){ setGyro(false); say('이 기기에서는 모션 센서를 쓸 수 없어요'); } },2000);
+  }else{
+    removeEventListener('deviceorientation',onOrient);
+    gyroOn=false; gyroBtn.classList.remove('on');
+  }
+}
+gyroBtn.addEventListener('click',()=>setGyro(!gyroOn));
+document.addEventListener('visibilitychange',()=>{ gF=null; });
 
 addEventListener('hashchange',()=>{ const n=parseInt(location.hash.slice(1)); if(byN[n]&&cur&&n!==cur.n) go(n); });
 const start=parseInt(location.hash.slice(1))||1;

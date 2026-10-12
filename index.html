@@ -18,6 +18,10 @@
   .hs:hover,.hs:focus-visible{background:rgba(255,255,255,.28);box-shadow:0 0 0 3px rgba(255,255,255,.9),0 0 22px 6px rgba(120,200,255,.8);transform:translate(-50%,-50%) scale(1.08)}
   .hs.dead{cursor:not-allowed}
   .hs.dead:hover{background:rgba(255,80,80,.18);box-shadow:0 0 0 3px rgba(255,120,120,.8)}
+  #home{position:fixed;left:14px;top:12px;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
+        display:flex;align-items:center;justify-content:center;z-index:7;transition:background .15s,transform .15s}
+  #home:hover,#home:focus-visible{background:rgba(0,0,0,.72);transform:scale(1.08);outline:none}
+  #home svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
   #hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.5);padding:8px 16px;border-radius:20px;
         font-size:13px;pointer-events:none;transition:opacity .8s;z-index:5;white-space:nowrap}
   #toast{position:fixed;left:50%;top:60px;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,.65);padding:8px 16px;border-radius:20px;
@@ -26,6 +30,7 @@
 </head>
 <body>
 <div id="stage"><div id="pano"></div></div>
+<a id="home" href="https://kangbaek-ho.github.io/map/" aria-label="지도로 이동" title="지도"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h4.5v-6h4v6h4.5V10"/></svg></a>
 <div id="hint">드래그로 둘러보고, 스크롤로 확대·축소, 화살표를 눌러 이동하세요</div>
 <div id="toast"></div>
 <script>
